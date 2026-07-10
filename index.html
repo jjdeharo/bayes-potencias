@@ -38,7 +38,11 @@
             <li>Recorrido diferente para cada persona</li>
             <li>Resultado pedagógico, no una nota</li>
           </ul>
-          <button id="start-diagnostic" class="button primary wide" type="button">Empezar diagnóstico</button>
+          <div class="mode-actions">
+            <p id="diagnostic-status" class="saved-status" hidden></p>
+            <button id="resume-diagnostic" class="button primary wide" type="button" hidden>Continuar diagnóstico</button>
+            <button id="start-diagnostic" class="button primary wide" type="button">Empezar diagnóstico</button>
+          </div>
         </article>
 
         <article class="mode-card practice-card">
@@ -50,7 +54,10 @@
             <li>Pistas con evidencia parcial</li>
             <li>Puedes terminar cuando quieras</li>
           </ul>
-          <button id="start-practice" class="button secondary wide" type="button">Empezar práctica</button>
+          <div class="mode-actions">
+            <p id="practice-status" class="saved-status" hidden></p>
+            <button id="start-practice" class="button secondary wide" type="button">Elegir qué practicar</button>
+          </div>
         </article>
       </div>
 
@@ -71,7 +78,8 @@
 
       <aside class="privacy-note">
         <span aria-hidden="true">⌂</span>
-        <p><strong>Privacidad por diseño.</strong> Todo funciona en este navegador. No se pide tu nombre ni se envía ninguna respuesta a Internet.</p>
+        <p><strong>Privacidad por diseño.</strong> Todo funciona en este navegador y tu progreso se guarda solo en él, para que puedas continuar otro día. No se pide tu nombre ni se envía ninguna respuesta a Internet.</p>
+        <button id="clear-data" class="text-button danger-link" type="button" hidden>Borrar datos guardados</button>
       </aside>
 
       <details class="how-it-works">
@@ -82,6 +90,36 @@
         </div>
       </details>
 
+    </section>
+
+    <section id="practice-setup-screen" class="screen setup-shell" hidden aria-labelledby="practice-setup-title">
+      <header class="app-header">
+        <button id="setup-home" class="brand-button" type="button" aria-label="Volver al inicio">
+          <span class="brand-mark small" aria-hidden="true">P<sup>n</sup></span>
+          <span>PotenciaLab</span>
+        </button>
+      </header>
+
+      <article class="setup-card">
+        <p class="eyebrow">Práctica</p>
+        <h1 id="practice-setup-title">¿Qué quieres practicar?</h1>
+        <p id="setup-diagnostic-summary" class="setup-lead" hidden></p>
+
+        <div id="setup-diagnostic-warning" class="setup-warning" hidden>
+          <p id="setup-warning-text"></p>
+          <button id="setup-start-diagnostic" class="button primary" type="button">Hacer el diagnóstico ahora</button>
+        </div>
+
+        <p id="setup-practice-note" class="muted" hidden></p>
+
+        <div class="choice-list">
+          <button id="practice-adaptive" class="choice-card adaptive" type="button">
+            <span class="choice-name">Práctica adaptativa (recomendada)</span>
+            <span class="choice-status">El recurso elige en cada momento la familia que más conviene reforzar.</span>
+          </button>
+          <div id="practice-categories" class="choice-grid" aria-label="Practicar una familia concreta"></div>
+        </div>
+      </article>
     </section>
 
     <section id="session-screen" class="screen session-shell" hidden aria-labelledby="question-prompt">

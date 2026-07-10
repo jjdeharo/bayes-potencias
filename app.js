@@ -16,9 +16,60 @@
   let state = null;
   let currentQuestion = null;
   let feedbackOpen = false;
+  let lastWeakestCategory = null;
   let random = E.seededRandom(Date.now());
 
   const byId = (id) => document.getElementById(id);
+
+  const STORAGE_KEY = 'potencialab-v1';
+
+  function loadStore() {
+    try {
+      const raw = window.localStorage.getItem(STORAGE_KEY);
+      return raw ? JSON.parse(raw) : {};
+    } catch (error) {
+      return {};
+    }
+  }
+
+  function saveStore(mutate) {
+    const store = loadStore();
+    mutate(store);
+    try {
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
+    } catch (error) {
+      // Sin almacenamiento disponible: la sesión sigue funcionando en memoria.
+    }
+  }
+
+  function snapshotState() {
+    return JSON.parse(JSON.stringify(state));
+  }
+
+  function persistProgress() {
+    if (!state || !state.answered) return;
+    const snapshot = snapshotState();
+    saveStore((store) => {
+      if (snapshot.mode === 'diagnostic') store.diagnosticInProgress = snapshot;
+      else store.practice = snapshot;
+    });
+  }
+
+  function reviveState(snapshot) {
+    return Object.assign(newState(snapshot.mode), JSON.parse(JSON.stringify(snapshot)));
+  }
+
+  function countText(count, singular, plural) {
+    return `${count} ${count === 1 ? singular : plural}`;
+  }
+
+  function formatDate(iso) {
+    try {
+      return new Date(iso).toLocaleDateString('es-ES', { day: 'numeric', month: 'long' });
+    } catch (error) {
+      return '';
+    }
+  }
 
   function freshLevelDistribution() {
     return E.UNIFORM_LEVEL_PRIOR.slice();
@@ -43,6 +94,7 @@
     });
     return {
       mode,
+      focusCategory: null,
       global: freshLevelDistribution(),
       categories,
       categoryEvidence,
@@ -67,16 +119,39 @@
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
-  function start(mode) {
-    state = newState(mode);
+  function beginSession() {
     currentQuestion = null;
     feedbackOpen = false;
-    random = E.seededRandom(Date.now() ^ (mode === 'practice' ? 0x51f15e : 0xa11ce));
+    random = E.seededRandom(Date.now() ^ (state.mode === 'practice' ? 0x51f15e : 0xa11ce));
     showScreen('session-screen');
-    byId('session-mode').textContent = mode === 'diagnostic' ? 'Diagnóstico' : 'Práctica adaptativa';
-    byId('finish-practice').hidden = mode !== 'practice';
-    byId('session-map-title').textContent = mode === 'diagnostic' ? 'Mapa provisional' : 'Tu mapa reciente';
+    byId('session-mode').textContent = state.mode === 'diagnostic'
+      ? 'Diagnóstico'
+      : state.focusCategory ? 'Práctica dirigida' : 'Práctica adaptativa';
+    byId('finish-practice').hidden = state.mode !== 'practice';
+    byId('session-map-title').textContent = state.mode === 'diagnostic' ? 'Mapa provisional' : 'Tu mapa reciente';
     nextQuestion();
+  }
+
+  function startDiagnostic(resume) {
+    const store = loadStore();
+    if (resume && store.diagnosticInProgress) {
+      state = reviveState(store.diagnosticInProgress);
+    } else {
+      if (store.diagnosticInProgress
+        && !window.confirm('Hay un diagnóstico sin terminar guardado. ¿Quieres descartarlo y empezar uno nuevo?')) return;
+      saveStore((s) => { delete s.diagnosticInProgress; });
+      state = newState('diagnostic');
+    }
+    beginSession();
+  }
+
+  function startPractice(focusCategory) {
+    const store = loadStore();
+    state = store.practice ? reviveState(store.practice) : newState('practice');
+    state.mode = 'practice';
+    state.focusCategory = focusCategory && CATEGORIES[focusCategory] ? focusCategory : null;
+    state.stopReason = null;
+    beginSession();
   }
 
   function evidenceCount(categoryId) {
@@ -131,7 +206,10 @@
     let targetCategory;
     let phase;
 
-    if (underSampled.length) {
+    if (state.focusCategory && CATEGORIES[state.focusCategory]) {
+      targetCategory = state.focusCategory;
+      phase = `Práctica dirigida · ${CATEGORIES[targetCategory].short}`;
+    } else if (underSampled.length) {
       const minimum = Math.min(...underSampled.map((id) => counts[id]));
       const tied = underSampled.filter((id) => counts[id] === minimum);
       targetCategory = tied[Math.floor(random() * tied.length)];
@@ -309,6 +387,7 @@
       question: Object.assign({}, currentQuestion),
     };
     state.history.push(historyEntry);
+    persistProgress();
 
     renderFeedback(historyEntry);
     renderMap();
@@ -407,6 +486,15 @@
   function finishSession() {
     if (!state || !state.answered) return;
     if (state.mode === 'practice' && !state.stopReason) state.stopReason = 'alumno';
+    if (state.mode === 'diagnostic') {
+      const snapshot = snapshotState();
+      saveStore((store) => {
+        delete store.diagnosticInProgress;
+        store.diagnostic = { state: snapshot, finishedAt: new Date().toISOString() };
+      });
+    } else {
+      persistProgress();
+    }
     renderResult();
     showScreen('result-screen');
   }
@@ -428,6 +516,7 @@
   function renderResult() {
     const sorted = sortedCategoriesWithEvidence();
     const weakest = sorted[0];
+    lastWeakestCategory = weakest ? weakest.id : null;
     const strongest = sorted.filter((entry) => entry.theta >= 0.5).slice(-2).reverse();
     const map = E.mapIndex(state.global);
     const fit = E.personFit(state.history, map);
@@ -531,21 +620,134 @@
     URL.revokeObjectURL(link.href);
   }
 
+  function goHome() {
+    renderWelcome();
+    showScreen('welcome-screen');
+  }
+
   function confirmRestart() {
-    if (!state || !state.answered || window.confirm('¿Quieres abandonar esta sesión y volver al inicio?')) {
+    if (!state || !state.answered || window.confirm('¿Quieres volver al inicio? Tu avance hasta la última respuesta comprobada queda guardado.')) {
       state = null;
       currentQuestion = null;
-      showScreen('welcome-screen');
+      goHome();
     }
   }
 
-  byId('start-diagnostic').addEventListener('click', () => start('diagnostic'));
-  byId('start-practice').addEventListener('click', () => start('practice'));
+  function renderWelcome() {
+    const store = loadStore();
+    const diagnosticStatus = byId('diagnostic-status');
+    const startDiagnosticButton = byId('start-diagnostic');
+    const resumeButton = byId('resume-diagnostic');
+
+    if (store.diagnosticInProgress) {
+      diagnosticStatus.hidden = false;
+      diagnosticStatus.textContent = `Diagnóstico sin terminar: ${countText(store.diagnosticInProgress.answered, 'ejercicio respondido', 'ejercicios respondidos')}. Puedes continuarlo.`;
+      resumeButton.hidden = false;
+      startDiagnosticButton.textContent = 'Empezar uno nuevo';
+      startDiagnosticButton.className = 'button ghost wide';
+    } else if (store.diagnostic) {
+      diagnosticStatus.hidden = false;
+      diagnosticStatus.textContent = `Diagnóstico completado (${formatDate(store.diagnostic.finishedAt)}): ${E.LEVELS[E.mapIndex(store.diagnostic.state.global)].name}.`;
+      resumeButton.hidden = true;
+      startDiagnosticButton.textContent = 'Repetir diagnóstico';
+      startDiagnosticButton.className = 'button primary wide';
+    } else {
+      diagnosticStatus.hidden = true;
+      resumeButton.hidden = true;
+      startDiagnosticButton.textContent = 'Empezar diagnóstico';
+      startDiagnosticButton.className = 'button primary wide';
+    }
+
+    const practiceStatus = byId('practice-status');
+    if (store.practice && store.practice.answered) {
+      practiceStatus.hidden = false;
+      practiceStatus.textContent = `Práctica guardada: ${countText(store.practice.answered, 'ejercicio acumulado', 'ejercicios acumulados')}. Continuarás donde lo dejaste.`;
+    } else {
+      practiceStatus.hidden = true;
+    }
+
+    byId('clear-data').hidden = !(store.diagnostic || store.diagnosticInProgress || store.practice);
+  }
+
+  function showPracticeSetup() {
+    const store = loadStore();
+    const diagnostic = store.diagnostic;
+    const summary = byId('setup-diagnostic-summary');
+    const warning = byId('setup-diagnostic-warning');
+
+    if (diagnostic) {
+      summary.hidden = false;
+      summary.textContent = `Tu diagnóstico (${formatDate(diagnostic.finishedAt)}) estimó un nivel global «${E.LEVELS[E.mapIndex(diagnostic.state.global)].name}». Cada familia muestra la lectura obtenida entonces.`;
+      warning.hidden = true;
+    } else {
+      summary.hidden = true;
+      warning.hidden = false;
+      byId('setup-warning-text').innerHTML = store.diagnosticInProgress
+        ? '<strong>Tienes el diagnóstico a medias.</strong> Te recomendamos terminarlo antes de practicar: así esta pantalla mostrará qué familias conviene reforzar.'
+        : '<strong>Todavía no has hecho el diagnóstico.</strong> Te recomendamos empezar por él: así sabrás qué familias conviene reforzar y esta pantalla mostrará tus resultados.';
+      byId('setup-start-diagnostic').textContent = store.diagnosticInProgress
+        ? 'Continuar el diagnóstico'
+        : 'Hacer el diagnóstico ahora';
+    }
+
+    const practiceNote = byId('setup-practice-note');
+    if (store.practice && store.practice.answered) {
+      practiceNote.hidden = false;
+      practiceNote.textContent = `Tu práctica continúa donde la dejaste: ${countText(store.practice.answered, 'ejercicio acumulado', 'ejercicios acumulados')} en el mapa.`;
+    } else {
+      practiceNote.hidden = true;
+    }
+
+    byId('practice-categories').innerHTML = CATEGORY_IDS.map((id) => {
+      let badgeText = 'Diagnóstico pendiente';
+      let badgeClass = 'empty';
+      if (diagnostic) {
+        const count = (diagnostic.state.categoryEvidence[id] || []).length;
+        const label = masteryLabel(diagnostic.state.categories[id], count);
+        badgeText = `Diagnóstico: ${label.text.toLowerCase()}`;
+        badgeClass = label.className;
+      }
+      return `
+        <button class="choice-card" type="button" data-category="${id}">
+          <span class="choice-name">${CATEGORIES[id].name}</span>
+          <span class="choice-badge ${badgeClass}">${badgeText}</span>
+        </button>
+      `;
+    }).join('');
+
+    showScreen('practice-setup-screen');
+  }
+
+  function clearSavedData() {
+    if (!window.confirm('Se borrará todo el progreso guardado en este navegador (diagnóstico y práctica) para empezar de cero. Esta acción no se puede deshacer. ¿Continuar?')) return;
+    try {
+      window.localStorage.removeItem(STORAGE_KEY);
+    } catch (error) {
+      // Nada que borrar si el almacenamiento no está disponible.
+    }
+    state = null;
+    currentQuestion = null;
+    renderWelcome();
+  }
+
+  byId('start-diagnostic').addEventListener('click', () => startDiagnostic(false));
+  byId('resume-diagnostic').addEventListener('click', () => startDiagnostic(true));
+  byId('start-practice').addEventListener('click', showPracticeSetup);
+  byId('setup-home').addEventListener('click', goHome);
+  byId('setup-start-diagnostic').addEventListener('click', () => startDiagnostic(Boolean(loadStore().diagnosticInProgress)));
+  byId('practice-adaptive').addEventListener('click', () => startPractice(null));
+  byId('practice-categories').addEventListener('click', (event) => {
+    const card = event.target.closest('[data-category]');
+    if (card) startPractice(card.dataset.category);
+  });
   byId('hint-button').addEventListener('click', showHint);
   byId('answer-form').addEventListener('submit', submitAnswer);
   byId('finish-practice').addEventListener('click', finishSession);
   byId('session-home').addEventListener('click', confirmRestart);
-  byId('result-home').addEventListener('click', () => showScreen('welcome-screen'));
-  byId('practice-weakness').addEventListener('click', () => start('practice'));
+  byId('result-home').addEventListener('click', goHome);
+  byId('practice-weakness').addEventListener('click', () => startPractice(lastWeakestCategory));
   byId('export-summary').addEventListener('click', exportSummary);
+  byId('clear-data').addEventListener('click', clearSavedData);
+
+  renderWelcome();
 })();
