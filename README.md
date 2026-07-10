@@ -27,7 +27,7 @@ Incluye dos modos separados:
 
 La probabilidad de acierto se genera mediante IRT 3PL. Cada pregunta tiene cuatro opciones (`c = 0,25`), discriminación nominal `a = 1,25 / (1 − c)` y techo de dominio `0,95`. Las dificultades `−1,5; −0,75; 0; 0,75; 1,5` quedan en la mitad central de la escala theta.
 
-Las pistas convierten un acierto en crédito parcial (`s = 0,55`). Un ejercicio repetido después de mostrar la solución recibe el mismo tratamiento: acertarlo otorga crédito parcial (puede ser memoria de la corrección) y fallarlo cuenta completo. Con las variantes parametrizadas esto es ya un caso residual: solo cuenta como repaso el retorno de una variante idéntica, no el de la plantilla. En el diagnóstico los ítems no se repiten.
+Las pistas convierten un acierto en crédito parcial (`s = 0,55`). Un ejercicio repetido después de mostrar la solución recibe el mismo tratamiento: acertarlo otorga crédito parcial (puede ser memoria de la corrección) y fallarlo cuenta completo. Con las variantes parametrizadas esto es ya un caso residual: solo cuenta como repaso el retorno de una variante idéntica dentro de una ventana reciente de 30 ejercicios, no el de la plantilla. La memoria de la corrección de un ejercicio concreto caduca en pocas decenas de ejercicios, así que pasada esa ventana la variante vuelve a ser evidencia plena; el selector, además, prefiere variantes no vistas recientemente. Como la ventana es reciente y no acumulada, la tasa de repaso no crece aunque el progreso se guarde y se retome a lo largo de varios días. En el diagnóstico los ítems no se repiten.
 
 ## Contenido
 

@@ -9,6 +9,10 @@
   const DIAGNOSTIC_MAX = 18;
   const PRACTICE_MIN_PER_CATEGORY = 2;
   const MEMORY = 20;
+  // Ventana (en nº de ejercicios) durante la que una variante idéntica cuenta como
+  // repaso: pasada esa distancia, la memoria de su corrección ya ha caducado y vuelve
+  // a ser evidencia plena. Acota también el historial persistido en localStorage.
+  const RECENT_VARIANTS = 30;
   const CATEGORY_LAMBDA = E.lambdaFor(MEMORY, CATEGORY_IDS.length);
   const FACTOR_LAMBDA = E.lambdaFor(MEMORY, FACTOR_IDS.length);
   const GLOBAL_LAMBDA = E.lambdaFor(MEMORY, 1);
@@ -296,6 +300,18 @@
     return { question: E.pickNearBest(scored, random, 0.04), phase };
   }
 
+  // Sortea una variante que no se haya visto en la ventana reciente. Si la plantilla
+  // tiene pocas combinaciones posibles y todas están recientes, devuelve la última:
+  // se mostrará marcada como repaso, pero el estado sigue actualizándose con normalidad.
+  function instantiateFresh(template, recent) {
+    let candidate = null;
+    for (let attempt = 0; attempt < 12; attempt += 1) {
+      candidate = instantiate(template, random);
+      if (!recent.has(candidate.variantKey)) break;
+    }
+    return candidate;
+  }
+
   function nextQuestion() {
     feedbackOpen = false;
     let selected;
@@ -314,11 +330,14 @@
       return;
     }
 
-    // Cada aparición de una plantilla genera datos nuevos. Solo cuenta como repaso
-    // si vuelve exactamente la misma variante, cuya corrección el alumno ya vio.
-    const built = instantiate(selected, random);
+    // Cada aparición de una plantilla genera datos nuevos. Se prefiere una variante
+    // no vista en la ventana reciente; solo cuenta como repaso (y contamina el feedback)
+    // si vuelve una variante idéntica dentro de esa ventana, no en todo el historial:
+    // la memoria de la corrección de un ejercicio concreto caduca en pocas decenas.
+    const recent = new Set(state.seenVariants.slice(-RECENT_VARIANTS));
+    const built = instantiateFresh(selected, recent);
     currentQuestion = E.shuffleQuestion(built, random);
-    currentQuestion.reused = state.seenVariants.includes(built.variantKey);
+    currentQuestion.reused = recent.has(built.variantKey);
     byId('practice-phase').textContent = phase;
     renderQuestion();
     renderMap();
@@ -432,7 +451,7 @@
     state.recent.push(currentQuestion.id);
     state.recent = state.recent.slice(-4);
     state.seenVariants.push(currentQuestion.variantKey);
-    state.seenVariants = state.seenVariants.slice(-400);
+    state.seenVariants = state.seenVariants.slice(-RECENT_VARIANTS);
     state.categoryEvidence[currentQuestion.category].push(state.answered);
     state.factorEvidence[currentQuestion.factor].push(state.answered);
 
