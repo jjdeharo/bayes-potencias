@@ -735,7 +735,9 @@
 
     if (diagnostic) {
       summary.hidden = false;
-      summary.textContent = `Tu diagnóstico (${formatDate(diagnostic.finishedAt)}) estimó un nivel global «${E.LEVELS[E.mapIndex(diagnostic.state.global)].name}». Cada familia muestra la lectura obtenida entonces.`;
+      summary.textContent = store.practice && store.practice.answered
+        ? `Tu diagnóstico (${formatDate(diagnostic.finishedAt)}) estimó un nivel global «${E.LEVELS[E.mapIndex(diagnostic.state.global)].name}». Cada familia muestra tu situación actual, actualizada con la práctica reciente.`
+        : `Tu diagnóstico (${formatDate(diagnostic.finishedAt)}) estimó un nivel global «${E.LEVELS[E.mapIndex(diagnostic.state.global)].name}». Cada familia muestra la lectura obtenida entonces.`;
       warning.hidden = true;
     } else {
       summary.hidden = true;
@@ -767,10 +769,18 @@
       }
     }
 
+    const practiceSnapshot = store.practice && store.practice.answered ? store.practice : null;
     byId('practice-categories').innerHTML = CATEGORY_IDS.map((id) => {
       let badgeText = 'Diagnóstico pendiente';
       let badgeClass = 'empty';
-      if (diagnostic) {
+      const practiceCount = practiceSnapshot
+        ? E.recentCount(practiceSnapshot.categoryEvidence[id] || [], practiceSnapshot.answered, CATEGORY_LAMBDA)
+        : 0;
+      if (practiceCount > 0) {
+        const label = masteryLabel(practiceSnapshot.categories[id], practiceCount);
+        badgeText = `Ahora: ${label.text.toLowerCase()}`;
+        badgeClass = label.className;
+      } else if (diagnostic) {
         const count = (diagnostic.state.categoryEvidence[id] || []).length;
         const label = masteryLabel(diagnostic.state.categories[id], count);
         badgeText = `Diagnóstico: ${label.text.toLowerCase()}`;
