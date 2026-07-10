@@ -407,30 +407,28 @@
     const correct = selectedIndex === currentQuestion.correct;
     const hinted = !byId('hint-panel').hidden;
     const reused = currentQuestion.reused;
-    const score = correct ? (hinted ? 0.55 : 1) : 0;
+    // Un acierto con pista o en un ejercicio repetido vale crédito parcial
+    // (puede ser memoria de la corrección); un fallo cuenta siempre completo.
+    const score = correct ? (hinted || reused ? 0.55 : 1) : 0;
 
     if (state.mode === 'practice') applyForgetting();
 
-    if (!reused) {
-      state.global = E.updateOrdinal(state.global, currentQuestion, score);
-      state.categories[currentQuestion.category] = E.updateOrdinal(
-        state.categories[currentQuestion.category], currentQuestion, score,
-      );
-      const errorWeight = hinted && correct ? 0.45 : 1;
-      state.factors[currentQuestion.factor] = E.updateError(
-        state.factors[currentQuestion.factor], currentQuestion, selectedIndex, errorWeight,
-      );
-    }
+    state.global = E.updateOrdinal(state.global, currentQuestion, score);
+    state.categories[currentQuestion.category] = E.updateOrdinal(
+      state.categories[currentQuestion.category], currentQuestion, score,
+    );
+    const errorWeight = (hinted || reused) && correct ? 0.45 : 1;
+    state.factors[currentQuestion.factor] = E.updateError(
+      state.factors[currentQuestion.factor], currentQuestion, selectedIndex, errorWeight,
+    );
 
     state.answered += 1;
     if (correct) state.correct += 1;
     state.usage[currentQuestion.id] = (state.usage[currentQuestion.id] || 0) + 1;
     state.recent.push(currentQuestion.id);
     state.recent = state.recent.slice(-4);
-    if (!reused) {
-      state.categoryEvidence[currentQuestion.category].push(state.answered);
-      state.factorEvidence[currentQuestion.factor].push(state.answered);
-    }
+    state.categoryEvidence[currentQuestion.category].push(state.answered);
+    state.factorEvidence[currentQuestion.factor].push(state.answered);
 
     const historyEntry = {
       id: currentQuestion.id,
@@ -472,8 +470,8 @@
     let note = '';
     if (entry.hinted && entry.correct) {
       note = 'La pista te ha ayudado: el acierto cuenta como evidencia parcial y volveremos sobre esta idea más adelante.';
-    } else if (entry.reused) {
-      note = 'Este era un ejercicio de repaso ya visto. Sirve para practicar, pero no modifica tu estimación.';
+    } else if (entry.reused && entry.correct) {
+      note = 'Este era un ejercicio de repaso ya visto: el acierto cuenta como evidencia parcial.';
     } else if (!entry.correct && entry.selected === currentQuestion.trap) {
       note = FACTORS[currentQuestion.factor].repair;
     }

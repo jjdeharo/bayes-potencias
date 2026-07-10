@@ -27,7 +27,7 @@ Incluye dos modos separados:
 
 La probabilidad de acierto se genera mediante IRT 3PL. Cada pregunta tiene cuatro opciones (`c = 0,25`), discriminación nominal `a = 1,25 / (1 − c)` y techo de dominio `0,95`. Las dificultades `−1,5; −0,75; 0; 0,75; 1,5` quedan en la mitad central de la escala theta.
 
-Las pistas convierten un acierto en crédito parcial (`s = 0,55`). Un ejercicio repetido después de mostrar la solución se usa solo como práctica y no actualiza el diagnóstico.
+Las pistas convierten un acierto en crédito parcial (`s = 0,55`). Un ejercicio repetido después de mostrar la solución recibe el mismo tratamiento: acertarlo otorga crédito parcial (puede ser memoria de la corrección) y fallarlo cuenta completo, de modo que el banco finito no bloquea la actualización de la estimación en sesiones largas de práctica. En el diagnóstico los ítems no se repiten.
 
 ## Contenido
 
