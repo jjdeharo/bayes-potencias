@@ -23,7 +23,7 @@ El recurso sigue un perfil combinado `A+C`:
 Incluye dos modos separados:
 
 - **Diagnóstico:** sin olvido, entre 10 y 18 preguntas, con cierre cuando el nivel y los factores alcanzan suficiente evidencia. Si no convergen, el resultado se marca como provisional.
-- **Práctica:** abierta y sin criterio de parada. Primero obtiene dos evidencias recientes por familia y después prioriza la menos dominada. Aplica olvido exponencial anclado al prior, con memoria efectiva de 20 intentos propios por distribución.
+- **Práctica:** abierta y sin criterio de parada. Si existe un diagnóstico completado, una práctica nueva parte de él: hereda sus distribuciones (que actúan como prior y como ancla del olvido) y su evidencia, con marcas de tiempo anteriores al inicio para que envejezca con normalidad. Sin diagnóstico, primero obtiene dos evidencias recientes por familia y después prioriza la menos dominada. Aplica olvido exponencial anclado al prior, con memoria efectiva de 20 intentos propios por distribución. La práctica guardada puede reiniciarse desde la pantalla de selección sin borrar el diagnóstico.
 
 La probabilidad de acierto se genera mediante IRT 3PL. Cada pregunta tiene cuatro opciones (`c = 0,25`), discriminación nominal `a = 1,25 / (1 − c)` y techo de dominio `0,95`. Las dificultades `−1,5; −0,75; 0; 0,75; 1,5` quedan en la mitad central de la escala theta.
 

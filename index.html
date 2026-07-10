@@ -114,13 +114,16 @@
         </div>
 
         <p id="setup-practice-note" class="muted" hidden></p>
+        <button id="reset-practice" class="text-button danger-link" type="button" hidden>Reiniciar la práctica</button>
 
         <div class="choice-list">
           <button id="practice-adaptive" class="choice-card adaptive" type="button">
             <span class="choice-name">Práctica adaptativa (recomendada)</span>
             <span class="choice-status">El recurso elige en cada momento la familia que más conviene reforzar.</span>
           </button>
-          <div id="practice-categories" class="choice-grid" aria-label="Practicar una familia concreta"></div>
+          <p class="muted">O marca una o varias familias concretas y empieza cuando quieras:</p>
+          <div id="practice-categories" class="choice-grid" aria-label="Elegir una o varias familias para practicar"></div>
+          <button id="practice-selected" class="button primary wide" type="button" disabled>Practicar las familias que marques</button>
         </div>
       </article>
     </section>

@@ -95,18 +95,25 @@
     const categoryEvidence = {};
     const factors = {};
     const factorEvidence = {};
+    const priorCategories = {};
+    const priorFactors = {};
     CATEGORY_IDS.forEach((id) => {
       categories[id] = freshLevelDistribution();
+      priorCategories[id] = freshLevelDistribution();
       categoryEvidence[id] = [];
     });
     FACTOR_IDS.forEach((id) => {
       factors[id] = freshErrorDistribution();
+      priorFactors[id] = freshErrorDistribution();
       factorEvidence[id] = [];
     });
     return {
       mode,
-      focusCategory: null,
+      focusCategories: [],
       global: freshLevelDistribution(),
+      priorGlobal: freshLevelDistribution(),
+      priorCategories,
+      priorFactors,
       categories,
       categoryEvidence,
       factors,
@@ -137,7 +144,7 @@
     showScreen('session-screen');
     byId('session-mode').textContent = state.mode === 'diagnostic'
       ? 'Diagnóstico'
-      : state.focusCategory ? 'Práctica dirigida' : 'Práctica adaptativa';
+      : (state.focusCategories || []).length ? 'Práctica dirigida' : 'Práctica adaptativa';
     byId('finish-practice').hidden = state.mode !== 'practice';
     byId('session-map-title').textContent = state.mode === 'diagnostic' ? 'Mapa provisional' : 'Tu mapa reciente';
     nextQuestion();
@@ -156,13 +163,40 @@
     beginSession();
   }
 
-  function startPractice(focusCategory) {
+  function startPractice(focusCategories) {
     const store = loadStore();
-    state = store.practice ? reviveState(store.practice) : newState('practice');
+    if (store.practice) {
+      state = reviveState(store.practice);
+    } else {
+      state = newState('practice');
+      if (store.diagnostic) seedPracticeFromDiagnostic(store.diagnostic.state);
+    }
     state.mode = 'practice';
-    state.focusCategory = focusCategory && CATEGORIES[focusCategory] ? focusCategory : null;
+    state.focusCategories = (focusCategories || []).filter((id) => CATEGORIES[id]);
     state.stopReason = null;
     beginSession();
+  }
+
+  // El diagnóstico es el punto de partida de la práctica: sus distribuciones
+  // actúan como prior (también como ancla del olvido) y su evidencia entra
+  // con marcas de tiempo anteriores al paso 0 para que envejezca con normalidad.
+  function seedPracticeFromDiagnostic(diagnostic) {
+    if (!diagnostic || !diagnostic.global) return;
+    const shift = diagnostic.answered || 0;
+    state.global = diagnostic.global.slice();
+    state.priorGlobal = diagnostic.global.slice();
+    CATEGORY_IDS.forEach((id) => {
+      if (!diagnostic.categories || !diagnostic.categories[id]) return;
+      state.categories[id] = diagnostic.categories[id].slice();
+      state.priorCategories[id] = diagnostic.categories[id].slice();
+      state.categoryEvidence[id] = (diagnostic.categoryEvidence[id] || []).map((step) => step - shift);
+    });
+    FACTOR_IDS.forEach((id) => {
+      if (!diagnostic.factors || !diagnostic.factors[id]) return;
+      state.factors[id] = diagnostic.factors[id].slice();
+      state.priorFactors[id] = diagnostic.factors[id].slice();
+      state.factorEvidence[id] = (diagnostic.factorEvidence[id] || []).map((step) => step - shift);
+    });
   }
 
   function evidenceCount(categoryId) {
@@ -213,23 +247,30 @@
     if (!available.length) available = QUESTIONS.slice();
 
     const counts = Object.fromEntries(CATEGORY_IDS.map((id) => [id, evidenceCount(id)]));
-    const underSampled = CATEGORY_IDS.filter((id) => counts[id] < PRACTICE_MIN_PER_CATEGORY);
+    const focus = (state.focusCategories || []).filter((id) => CATEGORIES[id]);
+    const candidates = focus.length ? focus : CATEGORY_IDS;
+    const underSampled = candidates.filter((id) => counts[id] < PRACTICE_MIN_PER_CATEGORY);
     let targetCategory;
     let phase;
 
-    if (state.focusCategory && CATEGORIES[state.focusCategory]) {
-      targetCategory = state.focusCategory;
-      phase = `Práctica dirigida · ${CATEGORIES[targetCategory].short}`;
-    } else if (underSampled.length) {
+    if (underSampled.length) {
       const minimum = Math.min(...underSampled.map((id) => counts[id]));
       const tied = underSampled.filter((id) => counts[id] === minimum);
       targetCategory = tied[Math.floor(random() * tied.length)];
-      phase = 'Exploración inicial';
     } else {
-      const thetaValues = CATEGORY_IDS.map((id) => ({ id, theta: E.expectedTheta(state.categories[id]) }));
+      const thetaValues = candidates.map((id) => ({ id, theta: E.expectedTheta(state.categories[id]) }));
       const weakest = Math.min(...thetaValues.map((entry) => entry.theta));
       const tied = thetaValues.filter((entry) => entry.theta <= weakest + 0.2);
       targetCategory = tied[Math.floor(random() * tied.length)].id;
+    }
+
+    if (focus.length === 1) {
+      phase = `Práctica dirigida · ${CATEGORIES[targetCategory].short}`;
+    } else if (focus.length) {
+      phase = `Práctica dirigida (${focus.length} familias) · ${CATEGORIES[targetCategory].short}`;
+    } else if (underSampled.length) {
+      phase = 'Exploración inicial';
+    } else {
       phase = `Refuerzo · ${CATEGORIES[targetCategory].short}`;
     }
 
@@ -340,12 +381,14 @@
   }
 
   function applyForgetting() {
-    state.global = E.attenuate(state.global, E.UNIFORM_LEVEL_PRIOR, GLOBAL_LAMBDA);
+    state.global = E.attenuate(state.global, state.priorGlobal || E.UNIFORM_LEVEL_PRIOR, GLOBAL_LAMBDA);
     CATEGORY_IDS.forEach((id) => {
-      state.categories[id] = E.attenuate(state.categories[id], E.UNIFORM_LEVEL_PRIOR, CATEGORY_LAMBDA);
+      const prior = (state.priorCategories || {})[id] || E.UNIFORM_LEVEL_PRIOR;
+      state.categories[id] = E.attenuate(state.categories[id], prior, CATEGORY_LAMBDA);
     });
     FACTOR_IDS.forEach((id) => {
-      state.factors[id] = E.attenuate(state.factors[id], E.ERROR_PRIOR, FACTOR_LAMBDA);
+      const prior = (state.priorFactors || {})[id] || E.ERROR_PRIOR;
+      state.factors[id] = E.attenuate(state.factors[id], prior, FACTOR_LAMBDA);
     });
   }
 
@@ -706,11 +749,22 @@
     }
 
     const practiceNote = byId('setup-practice-note');
+    const resetPractice = byId('reset-practice');
     if (store.practice && store.practice.answered) {
       practiceNote.hidden = false;
       practiceNote.textContent = `Tu práctica continúa donde la dejaste: ${countText(store.practice.answered, 'ejercicio acumulado', 'ejercicios acumulados')} en el mapa.`;
+      resetPractice.hidden = false;
+      resetPractice.textContent = diagnostic
+        ? 'Reiniciar la práctica (volverá a partir del diagnóstico)'
+        : 'Reiniciar la práctica desde cero';
     } else {
-      practiceNote.hidden = true;
+      resetPractice.hidden = true;
+      if (diagnostic) {
+        practiceNote.hidden = false;
+        practiceNote.textContent = 'La práctica partirá de los resultados de tu diagnóstico.';
+      } else {
+        practiceNote.hidden = true;
+      }
     }
 
     byId('practice-categories').innerHTML = CATEGORY_IDS.map((id) => {
@@ -723,14 +777,33 @@
         badgeClass = label.className;
       }
       return `
-        <button class="choice-card" type="button" data-category="${id}">
+        <button class="choice-card" type="button" data-category="${id}" aria-pressed="false">
           <span class="choice-name">${CATEGORIES[id].name}</span>
           <span class="choice-badge ${badgeClass}">${badgeText}</span>
         </button>
       `;
     }).join('');
+    updatePracticeSelection();
 
     showScreen('practice-setup-screen');
+  }
+
+  function selectedPracticeCategories() {
+    return Array.from(byId('practice-categories').querySelectorAll('[aria-pressed="true"]'))
+      .map((card) => card.dataset.category);
+  }
+
+  function updatePracticeSelection() {
+    const selected = selectedPracticeCategories();
+    const button = byId('practice-selected');
+    button.disabled = !selected.length;
+    if (!selected.length) {
+      button.textContent = 'Practicar las familias que marques';
+    } else if (selected.length === 1) {
+      button.textContent = `Practicar ${CATEGORIES[selected[0]].short}`;
+    } else {
+      button.textContent = `Practicar las ${selected.length} familias marcadas`;
+    }
   }
 
   function clearSavedData() {
@@ -745,22 +818,41 @@
     renderWelcome();
   }
 
+  function resetPracticeData() {
+    const store = loadStore();
+    const message = store.diagnostic
+      ? 'Se borrará el progreso de práctica y la siguiente sesión volverá a partir de tu diagnóstico. ¿Continuar?'
+      : 'Se borrará el progreso de práctica para empezar desde cero. ¿Continuar?';
+    if (!window.confirm(message)) return;
+    saveStore((s) => { delete s.practice; });
+    showPracticeSetup();
+  }
+
   byId('start-diagnostic').addEventListener('click', () => startDiagnostic(false));
   byId('resume-diagnostic').addEventListener('click', () => startDiagnostic(true));
   byId('start-practice').addEventListener('click', showPracticeSetup);
   byId('setup-home').addEventListener('click', goHome);
   byId('setup-start-diagnostic').addEventListener('click', () => startDiagnostic(Boolean(loadStore().diagnosticInProgress)));
+  byId('reset-practice').addEventListener('click', resetPracticeData);
   byId('practice-adaptive').addEventListener('click', () => startPractice(null));
   byId('practice-categories').addEventListener('click', (event) => {
     const card = event.target.closest('[data-category]');
-    if (card) startPractice(card.dataset.category);
+    if (!card) return;
+    const pressed = card.getAttribute('aria-pressed') === 'true';
+    card.setAttribute('aria-pressed', String(!pressed));
+    card.classList.toggle('selected', !pressed);
+    updatePracticeSelection();
+  });
+  byId('practice-selected').addEventListener('click', () => {
+    const selected = selectedPracticeCategories();
+    if (selected.length) startPractice(selected);
   });
   byId('hint-button').addEventListener('click', showHint);
   byId('answer-form').addEventListener('submit', submitAnswer);
   byId('finish-practice').addEventListener('click', finishSession);
   byId('session-home').addEventListener('click', confirmRestart);
   byId('result-home').addEventListener('click', goHome);
-  byId('practice-weakness').addEventListener('click', () => startPractice(lastWeakestCategory));
+  byId('practice-weakness').addEventListener('click', () => startPractice(lastWeakestCategory ? [lastWeakestCategory] : null));
   byId('export-summary').addEventListener('click', exportSummary);
   byId('clear-data').addEventListener('click', clearSavedData);
 
