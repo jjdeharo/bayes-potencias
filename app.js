@@ -2,7 +2,7 @@
   'use strict';
 
   const E = window.BayesEngine;
-  const { CATEGORIES, FACTORS, QUESTIONS } = window.PowersBank;
+  const { CATEGORIES, FACTORS, TEMPLATES, instantiate } = window.PowersBank;
   const CATEGORY_IDS = Object.keys(CATEGORIES);
   const FACTOR_IDS = Object.keys(FACTORS);
   const DIAGNOSTIC_MIN = 10;
@@ -121,6 +121,7 @@
       history: [],
       usage: {},
       recent: [],
+      seenVariants: [],
       answered: 0,
       correct: 0,
       lastPauseAt: -99,
@@ -230,7 +231,7 @@
 
   function selectDiagnostic() {
     const asked = new Set(state.history.map((entry) => entry.id));
-    const available = QUESTIONS.filter((question) => !asked.has(question.id));
+    const available = TEMPLATES.filter((template) => !asked.has(template.id));
     if (!available.length) return null;
     return E.selectCombinedDiagnostic(available, state, {
       categories: Object.fromEntries(CATEGORY_IDS.map((id) => [id, evidenceCount(id)])),
@@ -243,8 +244,8 @@
   }
 
   function selectPractice() {
-    let available = QUESTIONS.filter((question) => !state.recent.includes(question.id));
-    if (!available.length) available = QUESTIONS.slice();
+    let available = TEMPLATES.filter((template) => !state.recent.includes(template.id));
+    if (!available.length) available = TEMPLATES.slice();
 
     const counts = Object.fromEntries(CATEGORY_IDS.map((id) => [id, evidenceCount(id)]));
     const focus = (state.focusCategories || []).filter((id) => CATEGORIES[id]);
@@ -275,7 +276,7 @@
     }
 
     let pool = available.filter((question) => question.category === targetCategory);
-    if (!pool.length) pool = QUESTIONS.filter((question) => question.category === targetCategory);
+    if (!pool.length) pool = TEMPLATES.filter((template) => template.category === targetCategory);
     const unseen = pool.filter((question) => !(state.usage[question.id] > 0));
     if (unseen.length) pool = unseen;
 
@@ -313,8 +314,11 @@
       return;
     }
 
-    currentQuestion = E.shuffleQuestion(selected, random);
-    currentQuestion.reused = (state.usage[selected.id] || 0) > 0;
+    // Cada aparición de una plantilla genera datos nuevos. Solo cuenta como repaso
+    // si vuelve exactamente la misma variante, cuya corrección el alumno ya vio.
+    const built = instantiate(selected, random);
+    currentQuestion = E.shuffleQuestion(built, random);
+    currentQuestion.reused = state.seenVariants.includes(built.variantKey);
     byId('practice-phase').textContent = phase;
     renderQuestion();
     renderMap();
@@ -427,6 +431,8 @@
     state.usage[currentQuestion.id] = (state.usage[currentQuestion.id] || 0) + 1;
     state.recent.push(currentQuestion.id);
     state.recent = state.recent.slice(-4);
+    state.seenVariants.push(currentQuestion.variantKey);
+    state.seenVariants = state.seenVariants.slice(-400);
     state.categoryEvidence[currentQuestion.category].push(state.answered);
     state.factorEvidence[currentQuestion.factor].push(state.answered);
 
@@ -500,7 +506,7 @@
       state.confidentStop = true;
       return true;
     }
-    if (state.history.length >= QUESTIONS.length) {
+    if (state.history.length >= TEMPLATES.length) {
       state.stopReason = 'banco_agotado';
       return true;
     }

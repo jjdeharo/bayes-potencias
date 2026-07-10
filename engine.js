@@ -41,9 +41,12 @@
     return DIFFICULTIES[index];
   }
 
+  function optionCountOf(question) {
+    return Math.max(2, Number(question.optionCount || question.options?.length || 4));
+  }
+
   function probabilityCorrect(theta, question) {
-    const optionCount = Math.max(2, Number(question.optionCount || question.options?.length || 4));
-    const c = 1 / optionCount;
+    const c = 1 / optionCountOf(question);
     const a = A_EF / (1 - c);
     const b = difficultyFor(question);
     const raw = c + (1 - c) / (1 + Math.exp(-a * (theta - b)));
@@ -90,21 +93,22 @@
   }
 
   function errorOptionLikelihoods(question) {
-    const length = question.options.length;
+    const length = optionCountOf(question);
     const correctIndex = question.correct;
     const trapIndex = question.trap;
     const difficulty = clamp(Number(question.difficulty) || 0, 0, 4);
+    const indices = Array.from({ length }, (_, index) => index);
 
     // La ausencia del error no equivale a dominio perfecto. La dificultad conserva
     // una probabilidad razonable de fallo por otras causas.
     const absentCorrect = 0.78 - difficulty * 0.07;
     const absentWrong = (1 - absentCorrect) / (length - 1);
-    const absent = question.options.map((_, index) => index === correctIndex ? absentCorrect : absentWrong);
+    const absent = indices.map((index) => index === correctIndex ? absentCorrect : absentWrong);
 
     const presentCorrect = Math.max(0.14, absentCorrect * 0.28);
     const presentTrap = 0.68;
     const remaining = (1 - presentCorrect - presentTrap) / Math.max(1, length - 2);
-    const present = question.options.map((_, index) => {
+    const present = indices.map((index) => {
       if (index === correctIndex) return presentCorrect;
       if (index === trapIndex) return presentTrap;
       return remaining;
@@ -127,7 +131,7 @@
     if (!question.factor || question.trap == null) return 0;
     const tables = errorOptionLikelihoods(question);
     let expectedEntropy = 0;
-    for (let option = 0; option < question.options.length; option += 1) {
+    for (let option = 0; option < optionCountOf(question); option += 1) {
       const predictive = prior[0] * tables.absent[option] + prior[1] * tables.present[option];
       const posterior = normalize([
         prior[0] * tables.absent[option],
@@ -291,6 +295,7 @@
     mapIndex,
     normalize,
     normalizeScores,
+    optionCountOf,
     personFit,
     pickNearBest,
     probabilityCorrect,

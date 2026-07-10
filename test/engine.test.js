@@ -56,7 +56,7 @@ test('el olvido converge hacia el prior informativo, no hacia la uniforme', () =
 });
 
 test('el banco tiene redundancia local y metadatos completos', () => {
-  assert.equal(bank.QUESTIONS.length, 36);
+  assert.equal(bank.QUESTIONS.length, 51);
   Object.keys(bank.CATEGORIES).forEach((category) => {
     assert.ok(bank.QUESTIONS.filter((question) => question.category === category).length >= 6);
   });
@@ -66,6 +66,45 @@ test('el banco tiene redundancia local y metadatos completos', () => {
     assert.ok(bank.FACTORS[question.factor], question.id);
     assert.ok(question.explanation && question.hint, question.id);
   });
+});
+
+test('cada plantilla genera variantes correctas, distintas y con metadatos estables', () => {
+  assert.equal(bank.TEMPLATES.length, 51);
+  const values = { x: 1.7, y: 2.3, a: 1.9, b: 2.7, t: 1.4, u: 2.1, m: 3.4, n: 1.6 };
+
+  bank.TEMPLATES.forEach((template) => {
+    const random = E.seededRandom(101);
+    const keys = new Set();
+    for (let sample = 0; sample < 60; sample += 1) {
+      const question = bank.instantiate(template, random);
+      keys.add(question.variantKey);
+
+      assert.equal(question.options.length, 4, template.id);
+      assert.equal(new Set(question.options).size, 4, template.id);
+      assert.equal(question.difficulty, template.difficulty, template.id);
+      assert.equal(question.factor, template.factor, template.id);
+      assert.notEqual(question.correct, question.trap, template.id);
+      assert.ok(question.prompt && question.hint && question.explanation, template.id);
+
+      // La opción correcta debe reproducir el valor de la expresión del enunciado.
+      const [expression, answer] = template.check(question.params, (letter) => values[letter]);
+      assert.ok(Number.isFinite(expression) && Number.isFinite(answer), template.id);
+      const scale = Math.max(1, Math.abs(expression), Math.abs(answer));
+      assert.ok(Math.abs(expression - answer) / scale < 1e-9, `${template.id}: ${expression} ≠ ${answer}`);
+    }
+    assert.ok(keys.size >= 4, `${template.id} genera muy pocas variantes: ${keys.size}`);
+  });
+});
+
+test('las plantillas producen ejercicios nuevos, así que la práctica no se agota', () => {
+  const random = E.seededRandom(7);
+  const template = bank.TEMPLATES.find((entry) => entry.id === 'mb01');
+  const keys = new Set();
+  for (let sample = 0; sample < 200; sample += 1) {
+    keys.add(bank.instantiate(template, random).variantKey);
+  }
+  // Con un banco estático esta plantilla sería un único ejercicio repetido 200 veces.
+  assert.ok(keys.size > 20, `solo ${keys.size} variantes`);
 });
 
 test('la validación es reproducible con la misma semilla', () => {
