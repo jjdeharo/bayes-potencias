@@ -69,6 +69,9 @@ La ejecución reproducible de 500 simulaciones por estado con semilla `20260710`
 - `app.js`: flujo de diagnóstico y práctica.
 - `validation-core.js`: simulación reproducible.
 - `validation.html`: informe ejecutable para el creador.
+- `vendor/katex/`: librería KaTeX alojada localmente para renderizar las fórmulas en LaTeX sin depender de conexión a Internet.
+
+Las fórmulas del banco de preguntas se escriben en LaTeX (delimitadores `\( … \)`) y se renderizan con KaTeX en tiempo de ejecución.
 
 ## Revisión docente recomendada
 

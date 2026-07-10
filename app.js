@@ -21,6 +21,17 @@
 
   const byId = (id) => document.getElementById(id);
 
+  function renderMath(element) {
+    if (!element || typeof window.renderMathInElement !== 'function') return;
+    window.renderMathInElement(element, {
+      delimiters: [
+        { left: '\\(', right: '\\)', display: false },
+        { left: '\\[', right: '\\]', display: true },
+      ],
+      throwOnError: false,
+    });
+  }
+
   const STORAGE_KEY = 'potencialab-v1';
 
   function loadStore() {
@@ -290,7 +301,9 @@
     byId('question-number').textContent = `Ejercicio ${state.answered + 1}`;
     byId('question-category').textContent = category.name;
     byId('question-prompt').innerHTML = currentQuestion.prompt;
+    renderMath(byId('question-prompt'));
     byId('hint-text').innerHTML = currentQuestion.hint;
+    renderMath(byId('hint-text'));
     byId('hint-panel').hidden = true;
     byId('hint-button').hidden = false;
     byId('hint-button').disabled = false;
@@ -309,6 +322,7 @@
         <span class="option-text">${option}</span>
       </label>
     `).join('');
+    renderMath(options);
     options.querySelectorAll('input').forEach((input) => {
       input.addEventListener('change', () => {
         options.querySelectorAll('.option').forEach((label) => label.classList.remove('selected'));
@@ -410,6 +424,7 @@
     byId('feedback-title').textContent = entry.correct ? 'Bien razonado' : 'Vamos a revisar la propiedad';
     byId('feedback-title').className = entry.correct ? 'feedback-title success' : 'feedback-title review';
     byId('feedback-explanation').innerHTML = currentQuestion.explanation;
+    renderMath(byId('feedback-explanation'));
 
     let note = '';
     if (entry.hinted && entry.correct) {
