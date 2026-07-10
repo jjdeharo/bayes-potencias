@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <meta name="theme-color" content="#352b84">
+  <title>Validación del diseño · PotenciaLab</title>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    .validation-shell { max-width: 980px; padding: 1.25rem 0 3rem; }
+    .validation-hero, .validation-card {
+      padding: clamp(1.25rem, 4vw, 2.2rem);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--surface);
+      box-shadow: var(--shadow-small);
+    }
+    .validation-hero { margin-top: 1rem; border-top: 5px solid var(--primary); }
+    .validation-hero h1 { margin: 0; font-size: clamp(2rem, 5vw, 3.5rem); line-height: 1.05; letter-spacing: -0.05em; }
+    .validation-hero > p { max-width: 72ch; color: var(--ink-soft); }
+    .validation-card { margin-top: 1rem; }
+    .validation-card h2 { margin: 0 0 0.6rem; }
+    .validation-notice { padding: 0.8rem 1rem; border-radius: 10px; background: var(--primary-soft); color: color-mix(in srgb, var(--primary) 70%, var(--ink)); }
+    .validation-actions { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; margin-top: 1.25rem; }
+    .validation-status { color: var(--ink-soft); font-size: 0.9rem; }
+    .metric-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.8rem; margin: 1.2rem 0; }
+    .metric { padding: 1rem; border-radius: 13px; background: var(--surface-soft); }
+    .metric strong { display: block; color: var(--primary); font-size: 1.55rem; }
+    .metric span { color: var(--ink-soft); font-size: 0.78rem; }
+    .matrix td, .matrix th { text-align: center; }
+    .matrix tbody th { text-align: left; }
+    .matrix .hit { background: var(--success-soft); color: var(--success); font-weight: 800; }
+    .alerts { padding: 1rem 1rem 1rem 2rem; border-radius: 10px; background: var(--danger-soft); color: var(--danger); }
+    .ok-notice { padding: 0.8rem 1rem; border-radius: 10px; background: var(--success-soft); color: var(--success); font-weight: 700; }
+    .method-note { color: var(--ink-soft); font-size: 0.88rem; }
+    @media (max-width: 700px) { .metric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  </style>
+  <script defer src="engine.js"></script>
+  <script defer src="questions.js"></script>
+  <script defer src="validation-core.js"></script>
+  <script defer src="validation.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">Saltar al contenido</a>
+  <main id="main-content" class="screen validation-shell">
+    <header class="app-header">
+      <a class="brand-lockup compact" href="index.html">
+        <span class="brand-mark small" aria-hidden="true">P<sup>n</sup></span>
+        <span class="brand-name">PotenciaLab</span>
+      </a>
+      <a href="index.html">Volver al recurso</a>
+    </header>
+
+    <section class="validation-hero">
+      <p class="eyebrow">Herramienta del creador · no destinada al alumnado</p>
+      <h1>¿Distingue el banco lo que dice distinguir?</h1>
+      <p>Esta simulación genera estudiantes sintéticos a partir del propio modelo y repite la selección adaptativa del diagnóstico. Mide separabilidad bajo el modelo; no demuestra validez con alumnado real.</p>
+      <div class="validation-notice"><strong>Prueba reproducible:</strong> 500 simulaciones por nivel y 500 por cada estado de cada factor, con semilla fija <span class="math">20260710</span>.</div>
+      <div class="validation-actions">
+        <button id="run-validation" class="button primary" type="button">Ejecutar validación</button>
+        <span id="validation-status" class="validation-status" role="status">Última ejecución de desarrollo: 86,3 % de exactitud equilibrada. Puedes repetirla aquí.</span>
+      </div>
+    </section>
+
+    <div id="validation-results" hidden>
+      <section class="validation-card" aria-labelledby="summary-title">
+        <p class="eyebrow">Resumen</p>
+        <h2 id="summary-title">Separabilidad global</h2>
+        <div class="metric-grid">
+          <div class="metric"><strong id="metric-accuracy">—</strong><span>exactitud equilibrada</span></div>
+          <div class="metric"><strong id="metric-provisional">—</strong><span>resultados provisionales</span></div>
+          <div class="metric"><strong id="metric-length">—</strong><span>longitud media</span></div>
+          <div class="metric"><strong id="metric-seed">—</strong><span>semilla</span></div>
+        </div>
+        <div id="validation-alerts"></div>
+      </section>
+
+      <section class="validation-card table-region" tabindex="0" aria-labelledby="matrix-title">
+        <h2 id="matrix-title">Matriz de confusión del nivel</h2>
+        <p class="method-note">Filas: nivel sintético real. Columnas: orientación producida. Cada fila contiene 500 simulaciones.</p>
+        <table class="matrix">
+          <thead id="matrix-head"></thead>
+          <tbody id="matrix-body"></tbody>
+        </table>
+      </section>
+
+      <section class="validation-card table-region" tabindex="0" aria-labelledby="factors-title">
+        <h2 id="factors-title">Separación de los factores de error</h2>
+        <p class="method-note">Cada factor se prueba por separado con el modelo de respuesta por opciones que utiliza el diagnóstico.</p>
+        <table>
+          <thead><tr><th>Factor</th><th>Ausencia detectada</th><th>Presencia detectada</th><th>Exactitud equilibrada</th><th>Indeterminados</th></tr></thead>
+          <tbody id="factor-body"></tbody>
+        </table>
+      </section>
+
+      <section class="validation-card">
+        <h2>Cómo interpretar el resultado</h2>
+        <p class="method-note">El umbral de revisión es 70 % por nivel y por estado de cada factor. La simulación ordinal usa IRT 3PL con el mismo techo de dominio y la misma selección adaptativa. La comprobación de errores se ejecuta aparte porque el recurso mantiene marginales paralelas, no una probabilidad conjunta de nivel y errores.</p>
+        <p class="method-note">Una buena cifra aquí solo indica que el diseño es coherente consigo mismo. Para hablar de validez real harían falta respuestas de alumnado y revisión del contenido por docentes.</p>
+      </section>
+    </div>
+  </main>
+</body>
+</html>

@@ -1,0 +1,11 @@
+{
+  "name": "bayes-potencias",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Diagnóstico y práctica adaptativa de propiedades de las potencias para 1.º de Bachillerato",
+  "scripts": {
+    "test": "node --test",
+    "validate": "node scripts/validate.js",
+    "serve": "python3 -m http.server 8000"
+  }
+}

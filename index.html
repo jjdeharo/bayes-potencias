@@ -1,0 +1,245 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <meta name="theme-color" content="#352b84">
+  <meta name="description" content="Diagnóstico y práctica adaptativa de las propiedades de las potencias para 1.º de Bachillerato.">
+  <title>PotenciaLab · Potencias de 1.º de Bachillerato</title>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="styles.css">
+  <script defer src="engine.js"></script>
+  <script defer src="questions.js"></script>
+  <script defer src="app.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">Saltar al contenido</a>
+
+  <main id="main-content">
+    <section id="welcome-screen" class="screen welcome" aria-labelledby="welcome-title">
+      <header class="welcome-header">
+        <div class="brand-lockup">
+          <span class="brand-mark" aria-hidden="true">P<sup>n</sup></span>
+          <span class="brand-name">PotenciaLab</span>
+        </div>
+        <p class="eyebrow">Matemáticas · 1.º de Bachillerato</p>
+        <h1 id="welcome-title">Practica justo la propiedad que necesitas</h1>
+        <p class="welcome-lead">Cada respuesta ayuda a elegir el siguiente ejercicio. Puedes obtener una orientación breve o practicar sin límite y a tu ritmo.</p>
+      </header>
+
+      <div class="mode-grid" aria-label="Elige el tipo de sesión">
+        <article class="mode-card diagnostic-card">
+          <span class="mode-icon" aria-hidden="true">◎</span>
+          <p class="card-kicker">10–18 ejercicios</p>
+          <h2>Quiero orientarme</h2>
+          <p>Localiza qué propiedades ya manejas y cuál conviene trabajar primero. Termina cuando hay evidencia suficiente o al llegar al máximo.</p>
+          <ul class="clean-list">
+            <li>Recorrido diferente para cada persona</li>
+            <li>Resultado pedagógico, no una nota</li>
+          </ul>
+          <button id="start-diagnostic" class="button primary wide" type="button">Empezar diagnóstico</button>
+        </article>
+
+        <article class="mode-card practice-card">
+          <span class="mode-icon" aria-hidden="true">↗</span>
+          <p class="card-kicker">Sesión abierta</p>
+          <h2>Quiero practicar</h2>
+          <p>Explora las seis familias y después refuerza las que muestran menor dominio, con dificultad ajustada a tus respuestas recientes.</p>
+          <ul class="clean-list">
+            <li>Pistas con evidencia parcial</li>
+            <li>Puedes terminar cuando quieras</li>
+          </ul>
+          <button id="start-practice" class="button secondary wide" type="button">Empezar práctica</button>
+        </article>
+      </div>
+
+      <section class="syllabus" aria-labelledby="syllabus-title">
+        <div>
+          <p class="eyebrow">Qué vas a trabajar</p>
+          <h2 id="syllabus-title">De las reglas básicas a las expresiones combinadas</h2>
+        </div>
+        <div class="topic-pills">
+          <span>Misma base</span>
+          <span>Potencia de potencia</span>
+          <span>Producto y cociente</span>
+          <span>Exponentes negativos</span>
+          <span>Exponentes racionales</span>
+          <span>Expresiones combinadas</span>
+        </div>
+      </section>
+
+      <aside class="privacy-note">
+        <span aria-hidden="true">⌂</span>
+        <p><strong>Privacidad por diseño.</strong> Todo funciona en este navegador. No se pide tu nombre ni se envía ninguna respuesta a Internet.</p>
+      </aside>
+
+      <details class="how-it-works">
+        <summary>¿Cómo decide el siguiente ejercicio?</summary>
+        <div>
+          <p>El recurso no sigue una lista fija. Trata cada respuesta como una evidencia parcial, actualiza una distribución de probabilidades y busca una actividad informativa y adecuada a tu nivel actual.</p>
+          <p>Una pista reduce el peso diagnóstico del acierto. En la práctica, la evidencia antigua pierde peso poco a poco para que el mapa represente tu estado reciente.</p>
+        </div>
+      </details>
+
+    </section>
+
+    <section id="session-screen" class="screen session-shell" hidden aria-labelledby="question-prompt">
+      <header class="app-header">
+        <button id="session-home" class="brand-button" type="button" aria-label="Volver al inicio">
+          <span class="brand-mark small" aria-hidden="true">P<sup>n</sup></span>
+          <span>PotenciaLab</span>
+        </button>
+        <div class="session-actions">
+          <span id="session-mode" class="mode-chip"></span>
+          <button id="finish-practice" class="text-button" type="button" hidden>Terminar práctica</button>
+        </div>
+      </header>
+
+      <div class="progress-region">
+        <div class="progress-copy">
+          <span id="practice-phase"></span>
+          <span id="progress-label"></span>
+        </div>
+        <div class="progress-track">
+          <span id="progress-fill" class="progress-fill" role="progressbar" aria-label="Progreso de la sesión" aria-valuemin="0"></span>
+        </div>
+      </div>
+
+      <div class="session-layout">
+        <article id="question-card" class="question-card" tabindex="-1">
+          <div class="question-meta">
+            <span id="question-number"></span>
+            <span id="question-category" class="category-chip"></span>
+          </div>
+          <p id="reused-note" class="reused-note" hidden>Ejercicio de repaso: ya viste su corrección y no modificará tu estimación.</p>
+          <h1 id="question-prompt"></h1>
+
+          <div class="hint-area">
+            <button id="hint-button" class="hint-button" type="button" aria-expanded="false" aria-controls="hint-panel">Necesito una pista</button>
+            <div id="hint-panel" class="hint-panel" hidden>
+              <strong>Pista</strong>
+              <p id="hint-text"></p>
+            </div>
+          </div>
+
+          <form id="answer-form" novalidate>
+            <fieldset>
+              <legend class="sr-only">Elige una respuesta</legend>
+              <div id="options" class="options"></div>
+            </fieldset>
+            <p id="answer-error" class="form-error" role="alert" tabindex="-1" hidden>Elige una opción antes de comprobar.</p>
+            <button id="submit-answer" class="button primary" type="submit">Comprobar respuesta</button>
+          </form>
+
+          <section id="feedback" class="feedback" aria-live="polite" hidden>
+            <h2 id="feedback-title" class="feedback-title"></h2>
+            <p id="feedback-explanation"></p>
+            <p id="feedback-note" class="feedback-note" hidden></p>
+            <p id="calm-note" class="calm-note" hidden><strong>Hagamos una pausa breve.</strong> El patrón está siendo algo irregular. Respira, lee la siguiente pregunta con calma y continúa cuando quieras.</p>
+            <button id="next-question" class="button primary" type="button">Siguiente ejercicio</button>
+          </section>
+        </article>
+
+        <aside class="map-card" aria-labelledby="session-map-title">
+          <p class="eyebrow">Seguimiento</p>
+          <h2 id="session-map-title">Tu mapa</h2>
+          <p class="map-intro">Se basa en la evidencia disponible; «sin datos» no significa dificultad.</p>
+          <div id="session-map" class="session-map"></div>
+        </aside>
+      </div>
+    </section>
+
+    <section id="result-screen" class="screen result-shell" hidden aria-labelledby="result-title">
+      <header class="app-header result-header">
+        <div class="brand-lockup compact">
+          <span class="brand-mark small" aria-hidden="true">P<sup>n</sup></span>
+          <span class="brand-name">PotenciaLab</span>
+        </div>
+        <button id="result-home" class="text-button" type="button">Volver al inicio</button>
+      </header>
+
+      <article class="next-step-card">
+        <p id="result-kicker" class="eyebrow"></p>
+        <h1 id="result-title">Tu siguiente paso</h1>
+        <p id="result-recommendation" class="result-lead"></p>
+        <p id="provisional-note" class="provisional-note" hidden>La evidencia no ha convergido del todo o el patrón ha sido irregular. Interpreta esta orientación como provisional.</p>
+        <div class="result-actions">
+          <button id="practice-weakness" class="button primary" type="button">Practicar ahora</button>
+          <button id="export-summary" class="button ghost" type="button">Guardar resumen local</button>
+        </div>
+      </article>
+
+      <div class="result-grid">
+        <article class="result-card compact-result">
+          <p class="card-kicker">Estimación global</p>
+          <h2 id="result-level"></h2>
+          <p id="result-confidence"></p>
+          <p id="result-stats" class="muted"></p>
+        </article>
+        <article class="result-card">
+          <p class="card-kicker">Fortalezas observadas</p>
+          <ul id="strengths" class="result-list"></ul>
+        </article>
+      </div>
+
+      <article id="student-distribution-card" class="result-card uncertainty-card" hidden>
+        <p class="card-kicker">Resultado repartido</p>
+        <h2>La evidencia encaja con más de un nivel</h2>
+        <p class="muted">Por eso la recomendación se centra en la tarea que conviene practicar y no en una etiqueta única.</p>
+        <div id="student-posterior-bars" class="posterior-bars"></div>
+      </article>
+
+      <article id="hypotheses-card" class="result-card hypothesis-card" hidden>
+        <p class="card-kicker">Hipótesis para comprobar, no etiquetas</p>
+        <h2>Conviene mirar juntos estas ideas</h2>
+        <ul id="error-hypotheses" class="result-list"></ul>
+      </article>
+
+      <details class="teacher-details">
+        <summary>Información para el profesor</summary>
+        <div class="teacher-body">
+          <p class="teacher-intro">Modelo combinado: nivel ordinal global y por categorías, más factores de error independientes. Las probabilidades son estimaciones del recurso, no una calificación ni una calibración psicométrica empírica.</p>
+
+          <section aria-labelledby="posterior-title">
+            <h2 id="posterior-title">Distribución posterior global</h2>
+            <div id="posterior-bars" class="posterior-bars"></div>
+            <p><strong>Cierre:</strong> <span id="stop-reason"></span></p>
+            <p><strong>Ajuste del patrón (l<sub>z</sub>):</strong> <span id="person-fit"></span></p>
+          </section>
+
+          <section class="table-region" aria-labelledby="category-table-title" tabindex="0">
+            <h2 id="category-table-title">Evidencia por categoría</h2>
+            <table>
+              <thead><tr><th>Categoría</th><th>Intentos</th><th>Lectura</th><th>θ esperado</th></tr></thead>
+              <tbody id="teacher-categories"></tbody>
+            </table>
+          </section>
+
+          <section class="table-region" aria-labelledby="error-table-title" tabindex="0">
+            <h2 id="error-table-title">Factores de error</h2>
+            <table>
+              <thead><tr><th>Hipótesis</th><th>Evidencia</th><th>Estado</th><th>Prob.</th></tr></thead>
+              <tbody id="teacher-errors"></tbody>
+            </table>
+          </section>
+
+          <section class="teacher-checklist" aria-labelledby="checklist-title">
+            <h2 id="checklist-title">Lista breve de revisión docente</h2>
+            <ul>
+              <li>¿Estos errores aparecen realmente en tu alumnado?</li>
+              <li>¿Hay alguna pregunta fuera del nivel de 1.º de Bachillerato?</li>
+              <li>¿Las soluciones y explicaciones son matemáticamente correctas?</li>
+              <li>¿Falta algún caso importante de las propiedades de las potencias?</li>
+              <li>¿El lenguaje es adecuado para tu grupo?</li>
+            </ul>
+            <p><a href="validation.html">Abrir la validación Monte Carlo del banco</a></p>
+          </section>
+        </div>
+      </details>
+    </section>
+  </main>
+
+  <noscript>Este recurso necesita JavaScript para adaptar los ejercicios a tus respuestas.</noscript>
+</body>
+</html>
